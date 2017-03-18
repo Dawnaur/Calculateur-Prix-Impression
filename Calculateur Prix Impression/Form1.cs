@@ -101,6 +101,9 @@ namespace Calculateur_Prix_Impression
 				if (i == 0)
 					((ToolStripMenuItem)imprimanteToolStripMenuItem.DropDownItems[i]).Checked = true;
 			}
+			//imprimanteToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+			imprimanteToolStripMenuItem.DropDownItems.Add("Manage Printers");
+			imprimanteToolStripMenuItem.DropDownItems[++i].Click += new EventHandler(show_printers_settings);
 		}
 
 		private void refresh_filaments()
@@ -121,12 +124,12 @@ namespace Calculateur_Prix_Impression
 			double price;
 			double printer_rentability;
 
-			printer_rentability = printer_price * (1 + (printer_care * printer_lifetime)) / (printer_hours * 365.25 * printer_lifetime);
-			price = Convert.ToDouble(tb_time.Text) / printer_rentability; // frais d'amortissement
+			printer_rentability = printer_price * (1 + (printer_care * printer_lifetime)) / (printer_hours * 365.25 * printer_lifetime); // prix d'amortissement de l'imprimante à l'heure
+			price = Convert.ToDouble(tb_time.Text) * printer_rentability; // frais d'amortissement
 			price += Convert.ToDouble(tb_time.Text) * printer_consumption * electricity_cost / 1000; // frais d'électricité
 			price += Convert.ToDouble(tb_weight.Text) * filament_price / 1000; // frais de filament
 			price *= (1 + fail_probability);
-			price *= operator_margin;
+			price *= (1 + operator_margin);
 			price += Convert.ToDouble(tb_start.Text); // frais de départ
 			tb_total.Text = String.Format("{0:0.00}", price);
 		}
@@ -160,6 +163,115 @@ namespace Calculateur_Prix_Impression
 			settings formsettings = new settings(this);
 			formsettings.ShowDialog();
 			refresh_price();
+		}
+
+		private void show_printers_settings(object sender, EventArgs e)
+		{
+			int i = -1;
+
+			lb_printers.Items.Clear();
+			foreach (Printer item in printers)
+			{
+				lb_printers.Items.Add(item.name);
+			}
+			tb_printers_price.Clear();
+			tb_printers_lifetime.Clear();
+			tb_printers_care.Clear();
+			tb_printers_power.Clear();
+			tb_printers_price.Enabled = false;
+			tb_printers_lifetime.Enabled = false;
+			tb_printers_care.Enabled = false;
+			tb_printers_power.Enabled = false;
+			gb_printers.Visible = true;
+		}
+
+		private void load_printer_specs(String name)
+		{
+			foreach (Printer item in printers)
+			{
+				if (item.name == name)
+				{
+					tb_printers_price.Text = item.price.ToString();
+					tb_printers_lifetime.Text = item.depreciation.ToString();
+					tb_printers_care.Text = String.Format("{0:0}", item.care * 100); ;
+					tb_printers_power.Text = item.consumption.ToString();
+					break;
+				}
+			}
+			tb_printers_price.Enabled = true;
+			tb_printers_lifetime.Enabled = true;
+			tb_printers_care.Enabled = true;
+			tb_printers_power.Enabled = true;
+		}
+
+		private void save_printer_specs(String name)
+		{
+			if (lb_printers.SelectedIndex >= 0)
+			{
+				foreach (Printer item in printers)
+				{
+					if (item.name == name) // erreur sur le nom
+					{
+						item.price = Convert.ToDouble(tb_printers_price.Text);
+						item.depreciation = Convert.ToDouble(tb_printers_lifetime.Text);
+						item.care = Convert.ToDouble(tb_printers_care.Text) / 100;
+						item.consumption = Convert.ToDouble(tb_printers_power.Text);
+						printer_price = item.price;
+						printer_lifetime = item.depreciation;
+						printer_care = item.care;
+						printer_consumption = item.consumption;
+						break;
+					}
+				}
+			}
+		}
+
+		private void bt_printers_cancel_Click(object sender, EventArgs e)
+		{
+			if (lb_printers.SelectedIndex >= 0)
+				load_printer_specs(lb_printers.Items[lb_printers.SelectedIndex].ToString());
+		}
+
+		private void bt_printers_ok_Click(object sender, EventArgs e)
+		{
+			gb_printers.Visible = false;
+			refresh_price();
+		}
+
+		private void lb_printers_SelectedIndexChanged(object sender, EventArgs e)
+		{
+			ListBox lst = (ListBox)sender;
+			if (lst.SelectedIndex >= 0)
+				load_printer_specs(lst.Items[lst.SelectedIndex].ToString());
+		}
+
+		private void bt_printers_add_Click(object sender, EventArgs e)
+		{
+
+		}
+
+		private void bt_printers_delete_Click(object sender, EventArgs e)
+		{
+			if (lb_printers.SelectedIndex >= 0)
+			{
+				foreach (Printer elem in printers)
+				{
+					if (elem.name == lb_printers.Items[lb_printers.SelectedIndex].ToString())
+					{
+						printers.Remove(elem);
+						refresh_printers();
+						break;
+					}
+				}
+				lb_printers.Items.RemoveAt(lb_printers.SelectedIndex);
+				lb_printers.SelectedIndex = 0;
+			}
+		}
+
+		private void bt_printers_save_Click(object sender, EventArgs e)
+		{
+			if (lb_printers.SelectedIndex >= 0)
+				save_printer_specs(lb_printers.Items[lb_printers.SelectedIndex].ToString());
 		}
 	}
 
